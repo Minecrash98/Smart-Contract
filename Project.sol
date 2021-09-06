@@ -12,6 +12,7 @@ contract MyContract{
         uint id; // Comment this during deployment
         uint256 balance;
         bool active;
+        uint256 total_payment;
     }
     
     // token structure
@@ -19,6 +20,12 @@ contract MyContract{
         uint id;
         bool active;
     }
+    
+    struct Player_Record{
+        address id;
+        uint256 total_payment;
+    }
+    
     
     //////////////////// Structure Declaration End /////////////////////////
     
@@ -34,7 +41,7 @@ contract MyContract{
     
     uint256 public tokenCount = 0;
     mapping (uint => Token) public Tokens;
-
+    
     //////////////////// Variable Declaration End /////////////////////////
     
     //////////////////// Critical Functions /////////////////////////
@@ -48,7 +55,7 @@ contract MyContract{
     
     function addPlayer() public {
         incrementCount();
-        Players[peopleCount] = Player(peopleCount, 10, true);
+        Players[peopleCount] = Player(peopleCount, 10, true, 0);
     }
     
     
@@ -154,6 +161,28 @@ contract MyContract{
         return true;
     }
     
+    function living_sum () public view returns (uint256) {
+        uint256 sum = 0;
+        for (uint i = 0; i <= peopleCount; i++)
+        {
+            if (!Players[i].active) continue;
+            sum += Players[i].total_payment;
+        }
+        return sum;
+    }
+    
+    function split_pool () public {
+        uint256 living_total = living_sum();
+        for (uint i = 0; i <= peopleCount; i++)
+        {
+            if (!Players[i].active) continue;
+            uint256 deserved_amount = current_pool * Players[i].total_payment / living_total;
+            Players[i].total_payment = 0;
+            Players[i].balance += deserved_amount;
+        }
+        current_pool = 0;
+        living_total = 0;
+    }
     // Uncomment only for deployment
     //Register funciton, reqires real eth to join 
     // function Register() external payable{
@@ -178,6 +207,7 @@ contract MyContract{
     //     uint32 index =check_player_index();
     //     require(Players[index].balance>=amount,"Insufficient funds");
     //     Players[index].balance-=amount;
+    //     Players_Records[index].total_payment += amount;
     //     current_pool+=amount;
     // }
     
