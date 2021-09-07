@@ -21,17 +21,11 @@ contract MyContract{
         bool active;
     }
     
-    struct Player_Record{
-        address id;
-        uint256 total_payment;
-    }
-    
-    
     //////////////////// Structure Declaration End /////////////////////////
     
     //////////////////// Variable Declaration /////////////////////////
     // Current 'money' in the game
-    uint256 public current_pool=0;
+    uint256 public current_pool = 0;
     
     // Random id in which we can check who is the last person the token allocated to
     uint public random_id = 0;
@@ -55,7 +49,7 @@ contract MyContract{
     
     function addPlayer() public {
         incrementCount();
-        Players[peopleCount] = Player(peopleCount, 10, true, 0);
+        Players[peopleCount] = Player(peopleCount, 200, true, 0);
     }
     
     
@@ -66,14 +60,16 @@ contract MyContract{
     
     
     function token_transfer (uint token_index) public {
-        uint mul_factor;
-        // mul_factor = proof_of_work();
-        mul_factor = 10; // to prevent browser from entering a script take too long to load state
-        transfer_to_another_person(token_index, mul_factor, true);
+        // randomally generate a number to deduct the amonut of balance from user
+        uint random_number = (uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, token_index))) % 10) + 1;
+        uint total_payment = 10 * random_number;
+
+        transfer_to_another_person(token_index, total_payment, true);
         
         // check if the game is over --> meaning no more active tokens
         if (is_it_game_over() == true){
             // trigger payout event
+            split_pool();
         }
     }
     
@@ -120,31 +116,31 @@ contract MyContract{
         return false;
     }
     
-    // uncomment this part during deployment
-    // function proof_of_work () internal view returns (uint){
-    //     uint random_number = 500;
-    //     uint number_of_tries = 0;
-    //     while (random_number > 5){
-    //         random_number = (uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, random_number))) % 10) + 1;
-    //         number_of_tries = number_of_tries + 1;
-    //     }
-    //     return number_of_tries;
-    // }
-    
-    
-    function transfer_to_another_person (uint token_index, uint mul_factor, bool clash_found) internal {
+    function transfer_to_another_person (uint token_index, uint total_payment, bool clash_found) internal {
         uint256 current_balance = Players[Tokens[token_index].id].balance;
-        if (current_balance > mul_factor){
-            Players[Tokens[token_index].id].balance = current_balance - mul_factor; // minus off player balance from proof of work
+        if (current_balance > total_payment){
+            Players[Tokens[token_index].id].total_payment += total_payment; // keep track of how much the player has put into the pool
+            Players[Tokens[token_index].id].balance = current_balance - total_payment; // minus off player balance from proof of work
+            current_pool += total_payment;
             
             // transfer token to the next player
-            while(clash_found){
+            random_id = (uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, tokenCount))) % peopleCount) + 1;
+            while (clash_found){
                 clash_found = check_clash(random_id);
-                random_id = (uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, tokenCount))) % peopleCount) + 1;
+                if (clash_found == true){
+                    if (random_id <= peopleCount){
+                        random_id = random_id + 1;
+                    }else{
+                        random_id = 1;
+                    }
+                }
             }
+
             Tokens[token_index].id = random_id; // transfer token to the next player
         }else{
             // deactivate token and player
+            Players[Tokens[token_index].id].total_payment += Players[Tokens[token_index].id].balance; // keep track of how much the player has put into the pool
+            current_pool += Players[Tokens[token_index].id].balance;
             Players[Tokens[token_index].id].balance = 0;
             Players[Tokens[token_index].id].active = false;
             Tokens[token_index].active = false;
@@ -170,19 +166,25 @@ contract MyContract{
         }
         return sum;
     }
-    
-    function split_pool () public {
+    event this_is_not_happening(string);
+    uint256 public deserved_amount = 10;
+    function split_pool () internal {
         uint256 living_total = living_sum();
-        for (uint i = 0; i <= peopleCount; i++)
-        {
-            if (!Players[i].active) continue;
-            uint256 deserved_amount = current_pool * Players[i].total_payment / living_total;
-            Players[i].total_payment = 0;
-            Players[i].balance += deserved_amount;
+        // uint256 deserved_amount = 0;
+        // emit this_is_not_happening("This is not happening!");
+        if (living_total > 0){
+            // emit this_is_not_happening("This is not happening twice!");
+            for (uint i = 1; i <= peopleCount; i++){
+                // emit this_is_not_happening("This is not happening ttt!");
+                if (Players[i].active == true){
+                    emit this_is_not_happening("This is not happening ffff!");
+                    deserved_amount = current_pool * Players[i].total_payment / living_total;
+                    Players[i].balance += deserved_amount;
+                }
+            }
         }
-        current_pool = 0;
-        living_total = 0;
     }
+
     // Uncomment only for deployment
     //Register funciton, reqires real eth to join 
     // function Register() external payable{
