@@ -49,7 +49,7 @@ contract MyContract{
     
     function addPlayer() public {
         incrementCount();
-        Players[peopleCount] = Player(peopleCount, 200, true, 0);
+        Players[peopleCount] = Player(peopleCount, 130, true, 0);
     }
     
     
